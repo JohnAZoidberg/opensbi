@@ -16,41 +16,22 @@ extern struct fdt_serial fdt_serial_uart8250;
 extern struct fdt_serial fdt_serial_sifive;
 extern struct fdt_serial fdt_serial_htif;
 extern struct fdt_serial fdt_serial_shakti;
+extern struct fdt_serial fdt_serial_gaisler;
 
 static struct fdt_serial *serial_drivers[] = {
 	&fdt_serial_uart8250,
 	&fdt_serial_sifive,
 	&fdt_serial_htif,
 	&fdt_serial_shakti,
+	&fdt_serial_gaisler
 };
-
-static void dummy_putc(char ch)
-{
-}
-
-static int dummy_getc(void)
-{
-	return -1;
-}
 
 static struct fdt_serial dummy = {
 	.match_table = NULL,
 	.init = NULL,
-	.putc = dummy_putc,
-	.getc = dummy_getc,
 };
 
 static struct fdt_serial *current_driver = &dummy;
-
-void fdt_serial_putc(char ch)
-{
-	current_driver->putc(ch);
-}
-
-int fdt_serial_getc(void)
-{
-	return current_driver->getc();
-}
 
 int fdt_serial_init(void)
 {

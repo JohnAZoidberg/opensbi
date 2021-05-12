@@ -180,16 +180,9 @@ const struct sbi_platform_operations platform_ops = {
 	.early_init = openpiton_early_init,
 	.final_init = openpiton_final_init,
 	.console_init = openpiton_console_init,
-	.console_putc = uart8250_putc,
-	.console_getc = uart8250_getc,
 	.irqchip_init = openpiton_irqchip_init,
 	.ipi_init = openpiton_ipi_init,
-	.ipi_send = clint_ipi_send,
-	.ipi_clear = clint_ipi_clear,
 	.timer_init = openpiton_timer_init,
-	.timer_value = clint_timer_value,
-	.timer_event_start = clint_timer_event_start,
-	.timer_event_stop = clint_timer_event_stop,
 };
 
 const struct sbi_platform platform = {

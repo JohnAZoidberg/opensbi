@@ -154,16 +154,9 @@ const struct sbi_platform_operations platform_ops = {
 	.early_init = ariane_early_init,
 	.final_init = ariane_final_init,
 	.console_init = ariane_console_init,
-	.console_putc = uart8250_putc,
-	.console_getc = uart8250_getc,
 	.irqchip_init = ariane_irqchip_init,
 	.ipi_init = ariane_ipi_init,
-	.ipi_send = clint_ipi_send,
-	.ipi_clear = clint_ipi_clear,
 	.timer_init = ariane_timer_init,
-	.timer_value = clint_timer_value,
-	.timer_event_start = clint_timer_event_start,
-	.timer_event_stop = clint_timer_event_stop,
 };
 
 const struct sbi_platform platform = {

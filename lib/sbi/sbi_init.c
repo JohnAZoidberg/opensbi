@@ -53,6 +53,11 @@ static void sbi_boot_print_banner(struct sbi_scratch *scratch)
 static void sbi_boot_print_general(struct sbi_scratch *scratch)
 {
 	char str[128];
+	const struct sbi_hsm_device *hdev;
+	const struct sbi_ipi_device *idev;
+	const struct sbi_timer_device *tdev;
+	const struct sbi_console_device *cdev;
+	const struct sbi_system_reset_device *srdev;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 
 	if (scratch->options & SBI_SCRATCH_NO_BOOT_PRINTS)
@@ -65,6 +70,21 @@ static void sbi_boot_print_general(struct sbi_scratch *scratch)
 	sbi_printf("Platform Features         : %s\n", str);
 	sbi_printf("Platform HART Count       : %u\n",
 		   sbi_platform_hart_count(plat));
+	idev = sbi_ipi_get_device();
+	sbi_printf("Platform IPI Device       : %s\n",
+		   (idev) ? idev->name : "---");
+	tdev = sbi_timer_get_device();
+	sbi_printf("Platform Timer Device     : %s\n",
+		   (tdev) ? tdev->name : "---");
+	cdev = sbi_console_get_device();
+	sbi_printf("Platform Console Device   : %s\n",
+		   (cdev) ? cdev->name : "---");
+	hdev = sbi_hsm_get_device();
+	sbi_printf("Platform HSM Device       : %s\n",
+		   (hdev) ? hdev->name : "---");
+	srdev = sbi_system_reset_get_device();
+	sbi_printf("Platform SysReset Device  : %s\n",
+		   (srdev) ? srdev->name : "---");
 
 	/* Firmware details */
 	sbi_printf("Firmware Base             : 0x%lx\n", scratch->fw_start);
@@ -130,7 +150,6 @@ static unsigned long coldboot_done;
 static void wait_for_coldboot(struct sbi_scratch *scratch, u32 hartid)
 {
 	unsigned long saved_mie, cmip;
-	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 
 	/* Save MIE CSR */
 	saved_mie = csr_read(CSR_MIE);
@@ -167,14 +186,18 @@ static void wait_for_coldboot(struct sbi_scratch *scratch, u32 hartid)
 	/* Restore MIE CSR */
 	csr_write(CSR_MIE, saved_mie);
 
-	/* Clear current HART IPI */
-	sbi_platform_ipi_clear(plat, hartid);
+	/*
+	 * The wait for coldboot is common for both warm startup and
+	 * warm resume path so clearing IPI here would result in losing
+	 * an IPI in warm resume path.
+	 *
+	 * Also, the sbi_platform_ipi_init() called from sbi_ipi_init()
+	 * will automatically clear IPI for current HART.
+	 */
 }
 
 static void wake_coldboot_harts(struct sbi_scratch *scratch, u32 hartid)
 {
-	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
-
 	/* Mark coldboot done */
 	__smp_store_release(&coldboot_done, 1);
 
@@ -185,7 +208,7 @@ static void wake_coldboot_harts(struct sbi_scratch *scratch, u32 hartid)
 	for (int i = 0; i <= sbi_scratch_last_hartid(); i++) {
 		if ((i != hartid) &&
 		    sbi_hartmask_test_hart(i, &coldboot_wait_hmask))
-			sbi_platform_ipi_send(plat, i);
+			sbi_ipi_raw_send(i);
 	}
 
 	/* Release coldboot lock */
@@ -311,13 +334,11 @@ static void __noreturn init_coldboot(struct sbi_scratch *scratch, u32 hartid)
 			     scratch->next_mode, FALSE);
 }
 
-static void __noreturn init_warmboot(struct sbi_scratch *scratch, u32 hartid)
+static void init_warm_startup(struct sbi_scratch *scratch, u32 hartid)
 {
 	int rc;
 	unsigned long *init_count;
 	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
-
-	wait_for_coldboot(scratch, hartid);
 
 	if (!init_count_offset)
 		sbi_hart_hang();
@@ -362,6 +383,40 @@ static void __noreturn init_warmboot(struct sbi_scratch *scratch, u32 hartid)
 	(*init_count)++;
 
 	sbi_hsm_prepare_next_jump(scratch, hartid);
+}
+
+static void init_warm_resume(struct sbi_scratch *scratch)
+{
+	int rc;
+
+	sbi_hsm_hart_resume_start(scratch);
+
+	rc = sbi_hart_reinit(scratch);
+	if (rc)
+		sbi_hart_hang();
+
+	rc = sbi_hart_pmp_configure(scratch);
+	if (rc)
+		sbi_hart_hang();
+
+	sbi_hsm_hart_resume_finish(scratch);
+}
+
+static void __noreturn init_warmboot(struct sbi_scratch *scratch, u32 hartid)
+{
+	int hstate;
+
+	wait_for_coldboot(scratch, hartid);
+
+	hstate = sbi_hsm_hart_get_state(sbi_domain_thishart_ptr(), hartid);
+	if (hstate < 0)
+		sbi_hart_hang();
+
+	if (hstate == SBI_HSM_STATE_SUSPENDED)
+		init_warm_resume(scratch);
+	else
+		init_warm_startup(scratch, hartid);
+
 	sbi_hart_switch_mode(hartid, scratch->next_arg1,
 			     scratch->next_addr,
 			     scratch->next_mode, FALSE);

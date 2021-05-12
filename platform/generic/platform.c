@@ -184,49 +184,20 @@ static u64 generic_tlbr_flush_limit(void)
 	return SBI_PLATFORM_TLB_RANGE_FLUSH_LIMIT_DEFAULT;
 }
 
-static int generic_system_reset_check(u32 reset_type, u32 reset_reason)
-{
-	if (generic_plat && generic_plat->system_reset_check)
-		return generic_plat->system_reset_check(reset_type,
-							reset_reason,
-							generic_plat_match);
-	return fdt_system_reset_check(reset_type, reset_reason);
-}
-
-static void generic_system_reset(u32 reset_type, u32 reset_reason)
-{
-	if (generic_plat && generic_plat->system_reset) {
-		generic_plat->system_reset(reset_type, reset_reason,
-					   generic_plat_match);
-		return;
-	}
-
-	fdt_system_reset(reset_type, reset_reason);
-}
-
 const struct sbi_platform_operations platform_ops = {
 	.early_init		= generic_early_init,
 	.final_init		= generic_final_init,
 	.early_exit		= generic_early_exit,
 	.final_exit		= generic_final_exit,
 	.domains_init		= generic_domains_init,
-	.console_putc		= fdt_serial_putc,
-	.console_getc		= fdt_serial_getc,
 	.console_init		= fdt_serial_init,
 	.irqchip_init		= fdt_irqchip_init,
 	.irqchip_exit		= fdt_irqchip_exit,
-	.ipi_send		= fdt_ipi_send,
-	.ipi_clear		= fdt_ipi_clear,
 	.ipi_init		= fdt_ipi_init,
 	.ipi_exit		= fdt_ipi_exit,
 	.get_tlbr_flush_limit	= generic_tlbr_flush_limit,
-	.timer_value		= fdt_timer_value,
-	.timer_event_stop	= fdt_timer_event_stop,
-	.timer_event_start	= fdt_timer_event_start,
 	.timer_init		= fdt_timer_init,
 	.timer_exit		= fdt_timer_exit,
-	.system_reset_check	= generic_system_reset_check,
-	.system_reset		= generic_system_reset,
 };
 
 struct sbi_platform platform = {

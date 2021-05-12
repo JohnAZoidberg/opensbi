@@ -10,17 +10,25 @@
 #include <sbi/riscv_asm.h>
 #include <sbi/riscv_atomic.h>
 #include <sbi/riscv_io.h>
+#include <sbi/sbi_domain.h>
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_hartmask.h>
+#include <sbi/sbi_ipi.h>
+#include <sbi/sbi_timer.h>
 #include <sbi_utils/sys/clint.h>
 
 #define CLINT_IPI_OFF		0
+#define CLINT_IPI_SIZE		0x4000
+
 #define CLINT_TIME_CMP_OFF	0x4000
+#define CLINT_TIME_CMP_SIZE	0x4000
+
 #define CLINT_TIME_VAL_OFF	0xbff8
+#define CLINT_TIME_VAL_SIZE	0x4000
 
 static struct clint_data *clint_ipi_hartid2data[SBI_HARTMASK_MAX_BITS];
 
-void clint_ipi_send(u32 target_hart)
+static void clint_ipi_send(u32 target_hart)
 {
 	struct clint_data *clint;
 
@@ -34,7 +42,7 @@ void clint_ipi_send(u32 target_hart)
 	writel(1, &clint->ipi[target_hart - clint->first_hartid]);
 }
 
-void clint_ipi_clear(u32 target_hart)
+static void clint_ipi_clear(u32 target_hart)
 {
 	struct clint_data *clint;
 
@@ -48,6 +56,12 @@ void clint_ipi_clear(u32 target_hart)
 	writel(0, &clint->ipi[target_hart - clint->first_hartid]);
 }
 
+static struct sbi_ipi_device clint_ipi = {
+	.name = "clint",
+	.ipi_send = clint_ipi_send,
+	.ipi_clear = clint_ipi_clear
+};
+
 int clint_warm_ipi_init(void)
 {
 	/* Clear CLINT IPI for current HART */
@@ -59,6 +73,8 @@ int clint_warm_ipi_init(void)
 int clint_cold_ipi_init(struct clint_data *clint)
 {
 	u32 i;
+	int rc;
+	struct sbi_domain_memregion reg;
 
 	if (!clint)
 		return SBI_EINVAL;
@@ -69,6 +85,16 @@ int clint_cold_ipi_init(struct clint_data *clint)
 	/* Update IPI hartid table */
 	for (i = 0; i < clint->hart_count; i++)
 		clint_ipi_hartid2data[clint->first_hartid + i] = clint;
+
+	/* Add CLINT ipi region to the root domain */
+	sbi_domain_memregion_init(clint->addr + CLINT_IPI_OFF,
+				  CLINT_IPI_SIZE,
+				  SBI_DOMAIN_MEMREGION_MMIO, &reg);
+	rc = sbi_domain_root_add_memregion(&reg);
+	if (rc)
+		return rc;
+
+	sbi_ipi_set_device(&clint_ipi);
 
 	return 0;
 }
@@ -107,7 +133,7 @@ static void clint_time_wr32(u64 value, volatile u64 *addr)
 	writel_relaxed(value >> 32, (void *)(addr) + 0x04);
 }
 
-u64 clint_timer_value(void)
+static u64 clint_timer_value(void)
 {
 	struct clint_data *clint = clint_timer_hartid2data[current_hartid()];
 
@@ -115,7 +141,7 @@ u64 clint_timer_value(void)
 	return clint->time_rd(clint->time_val) + clint->time_delta;
 }
 
-void clint_timer_event_stop(void)
+static void clint_timer_event_stop(void)
 {
 	u32 target_hart = current_hartid();
 	struct clint_data *clint = clint_timer_hartid2data[target_hart];
@@ -125,7 +151,7 @@ void clint_timer_event_stop(void)
 			&clint->time_cmp[target_hart - clint->first_hartid]);
 }
 
-void clint_timer_event_start(u64 next_event)
+static void clint_timer_event_start(u64 next_event)
 {
 	u32 target_hart = current_hartid();
 	struct clint_data *clint = clint_timer_hartid2data[target_hart];
@@ -134,6 +160,13 @@ void clint_timer_event_start(u64 next_event)
 	clint->time_wr(next_event - clint->time_delta,
 		       &clint->time_cmp[target_hart - clint->first_hartid]);
 }
+
+static struct sbi_timer_device clint_timer = {
+	.name = "clint",
+	.timer_value = clint_timer_value,
+	.timer_event_start = clint_timer_event_start,
+	.timer_event_stop = clint_timer_event_stop
+};
 
 int clint_warm_timer_init(void)
 {
@@ -174,6 +207,8 @@ int clint_cold_timer_init(struct clint_data *clint,
 			  struct clint_data *reference)
 {
 	u32 i;
+	int rc;
+	struct sbi_domain_memregion reg;
 
 	if (!clint)
 		return SBI_EINVAL;
@@ -198,6 +233,24 @@ int clint_cold_timer_init(struct clint_data *clint,
 	/* Update timer hartid table */
 	for (i = 0; i < clint->hart_count; i++)
 		clint_timer_hartid2data[clint->first_hartid + i] = clint;
+
+	/* Add CLINT mtime region to the root domain */
+	sbi_domain_memregion_init(clint->addr + CLINT_TIME_VAL_OFF,
+				  CLINT_TIME_VAL_SIZE,
+				  SBI_DOMAIN_MEMREGION_MMIO, &reg);
+	rc = sbi_domain_root_add_memregion(&reg);
+	if (rc)
+		return rc;
+
+	/* Add CLINT timecmp region to the root domain */
+	sbi_domain_memregion_init(clint->addr + CLINT_TIME_CMP_OFF,
+				  CLINT_TIME_CMP_SIZE,
+				  SBI_DOMAIN_MEMREGION_MMIO, &reg);
+	rc = sbi_domain_root_add_memregion(&reg);
+	if (rc)
+		return rc;
+
+	sbi_timer_set_device(&clint_timer);
 
 	return 0;
 }

@@ -64,23 +64,6 @@ static int platform_console_init(void)
 }
 
 /*
- * Write a character to the platform console output.
- */
-static void platform_console_putc(char ch)
-{
-	/* Example if the generic UART8250 driver is used */
-	uart8250_putc(ch);
-}
-
-/*
- * Read a character from the platform console input.
- */
-static int platform_console_getc(void)
-{
-	return uart8250_getc();
-}
-
-/*
  * Initialize the platform interrupt controller for current HART.
  */
 static int platform_irqchip_init(bool cold_boot)
@@ -116,24 +99,6 @@ static int platform_ipi_init(bool cold_boot)
 }
 
 /*
- * Send IPI to a target HART
- */
-static void platform_ipi_send(u32 target_hart)
-{
-	/* Example if the generic CLINT driver is used */
-	clint_ipi_send(target_hart);
-}
-
-/*
- * Clear IPI for a target HART.
- */
-static void platform_ipi_clear(u32 target_hart)
-{
-	/* Example if the generic CLINT driver is used */
-	clint_ipi_clear(target_hart);
-}
-
-/*
  * Initialize platform timer for current HART.
  */
 static int platform_timer_init(bool cold_boot)
@@ -151,66 +116,15 @@ static int platform_timer_init(bool cold_boot)
 }
 
 /*
- * Get platform timer value.
- */
-static u64 platform_timer_value(void)
-{
-	/* Example if the generic CLINT driver is used */
-	return clint_timer_value();
-}
-
-/*
- * Start platform timer event for current HART.
- */
-static void platform_timer_event_start(u64 next_event)
-{
-	/* Example if the generic CLINT driver is used */
-	clint_timer_event_start(next_event);
-}
-
-/*
- * Stop platform timer event for current HART.
- */
-static void platform_timer_event_stop(void)
-{
-	/* Example if the generic CLINT driver is used */
-	clint_timer_event_stop();
-}
-
-/*
- * Check reset type and reason supported by the platform.
- */
-static int platform_system_reset_check(u32 type, u32 reason)
-{
-	return 0;
-}
-
-/*
- * Reset the platform.
- */
-static void platform_system_reset(u32 type, u32 reason)
-{
-}
-
-/*
  * Platform descriptor.
  */
 const struct sbi_platform_operations platform_ops = {
 	.early_init		= platform_early_init,
 	.final_init		= platform_final_init,
-	.console_putc		= platform_console_putc,
-	.console_getc		= platform_console_getc,
 	.console_init		= platform_console_init,
 	.irqchip_init		= platform_irqchip_init,
-	.ipi_send		= platform_ipi_send,
-	.ipi_clear		= platform_ipi_clear,
 	.ipi_init		= platform_ipi_init,
-	.timer_value		= platform_timer_value,
-	.timer_event_stop	= platform_timer_event_stop,
-	.timer_event_start	= platform_timer_event_start,
-	.timer_init		= platform_timer_init,
-	.system_reset_check	= platform_system_reset_check,
-	.system_reset		= platform_system_reset
+	.timer_init		= platform_timer_init
 };
 const struct sbi_platform platform = {
 	.opensbi_version	= OPENSBI_VERSION,

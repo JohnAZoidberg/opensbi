@@ -13,27 +13,15 @@
 
 extern struct fdt_reset fdt_reset_sifive;
 extern struct fdt_reset fdt_reset_htif;
+extern struct fdt_reset fdt_reset_thead;
 
 static struct fdt_reset *reset_drivers[] = {
 	&fdt_reset_sifive,
 	&fdt_reset_htif,
+	&fdt_reset_thead,
 };
 
 static struct fdt_reset *current_driver = NULL;
-
-int fdt_system_reset_check(u32 reset_type, u32 reset_reason)
-{
-	if (current_driver && current_driver->system_reset_check)
-		return current_driver->system_reset_check(reset_type,
-							  reset_reason);
-	return 0;
-}
-
-void fdt_system_reset(u32 reset_type, u32 reset_reason)
-{
-	if (current_driver && current_driver->system_reset)
-		current_driver->system_reset(reset_type, reset_reason);
-}
 
 int fdt_reset_init(void)
 {
