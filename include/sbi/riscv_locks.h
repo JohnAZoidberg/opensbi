@@ -20,7 +20,7 @@ typedef struct {
        u16 owner;
        u16 next;
 #endif
-} __aligned(4) spinlock_t;
+} __attribute ((aligned(4))) spinlock_t;
 
 #define __SPIN_LOCK_UNLOCKED	\
 	(spinlock_t) { 0, 0 }
@@ -34,7 +34,7 @@ typedef struct {
 #define DEFINE_SPIN_LOCK(x)	\
 	spinlock_t SPIN_LOCK_INIT(x)
 
-int spin_lock_check(spinlock_t *lock);
+bool spin_lock_check(spinlock_t *lock);
 
 int spin_trylock(spinlock_t *lock);
 
