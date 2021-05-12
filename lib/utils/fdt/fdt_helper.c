@@ -7,13 +7,11 @@
  */
 
 #include <libfdt.h>
-#include <libfdt_env.h>
 #include <sbi/riscv_asm.h>
 #include <sbi/sbi_console.h>
 #include <sbi/sbi_hartmask.h>
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_scratch.h>
-#include <sbi/sbi_string.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/sys/clint.h>
@@ -171,7 +169,7 @@ int fdt_parse_hart_id(void *fdt, int cpu_offset, u32 *hartid)
 	prop = fdt_getprop(fdt, cpu_offset, "device_type", &len);
 	if (!prop || !len)
 		return SBI_EINVAL;
-	if (sbi_strncmp (prop, "cpu", strlen ("cpu")))
+	if (strncmp (prop, "cpu", strlen ("cpu")))
 		return SBI_EINVAL;
 
 	val = fdt_getprop(fdt, cpu_offset, "reg", &len);
