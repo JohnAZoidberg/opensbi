@@ -10,6 +10,8 @@
 #ifndef __RISCV_LOCKS_H__
 #define __RISCV_LOCKS_H__
 
+#include <sbi/sbi_types.h>
+
 typedef struct {
 	volatile long lock;
 } spinlock_t;
@@ -23,9 +25,9 @@ typedef struct {
 		.lock = __RISCV_SPIN_UNLOCKED, \
 	}
 
-int spin_lock_check(spinlock_t *lock);
+bool spin_lock_check(spinlock_t *lock);
 
-int spin_trylock(spinlock_t *lock);
+bool spin_trylock(spinlock_t *lock);
 
 void spin_lock(spinlock_t *lock);
 

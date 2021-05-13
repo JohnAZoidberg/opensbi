@@ -10,12 +10,12 @@
 #include <sbi/riscv_barrier.h>
 #include <sbi/riscv_locks.h>
 
-int spin_lock_check(spinlock_t *lock)
+bool spin_lock_check(spinlock_t *lock)
 {
 	return (lock->lock == __RISCV_SPIN_UNLOCKED) ? 0 : 1;
 }
 
-int spin_trylock(spinlock_t *lock)
+bool spin_trylock(spinlock_t *lock)
 {
 	int tmp = 1, busy;
 
